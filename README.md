@@ -1,4 +1,4 @@
-== vtfoo
+# vtfoo
 
 This is an experiment with the MacOS VideoToolbox APIs.
 
