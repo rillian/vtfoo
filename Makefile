@@ -20,7 +20,7 @@ clean:
 	$(RM) vtfoo
 
 check: all
-	@echo No tests.
+	./vtfoo
 
 dist:
 	@echo Not implemented.
