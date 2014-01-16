@@ -21,7 +21,7 @@ clean:
 	$(RM) $(PROGRAMS)
 
 check: all
-	for prog in $(PROGRAMS); do echo ./$$(prog) && ./$$(prog); done
+	@for prog in $(PROGRAMS); do echo ./$${prog} && ./$${prog}; done
 
 dist:
 	@echo Not implemented.
@@ -31,7 +31,7 @@ dist:
 %.o : %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $^
 
-define PROGRAM_template =
+define PROGRAM_template
 $(1)_OBJS := $$($(1)_SRCS:%.c=%.o)
 ALL_OBJS += $$($(1)_OBJS)
 $(1) : $$($(1)_OBJS)
