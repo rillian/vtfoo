@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 uint32_t read_size(FILE *in)
 {
@@ -22,6 +23,38 @@ uint32_t read_size(FILE *in)
          buf[3];
 }
 
+/* dump an 'ftyp' box, assuming the header is already read */
+int dump_ftyp(FILE *in, uint32_t size)
+{
+  char brand[5];
+  uint32_t version;
+  int brands;
+  size_t read;
+
+  if (size < 8)
+    return -8;
+  brands = (size - 8) / 4;
+  read = fread(brand, 1, 4, in);
+  if (read != 4) {
+    fprintf(stderr, "Error: couldn't read brand\n");
+    return -1;
+  }
+  brand[4] = '\0';
+  version = read_size(in);
+  fprintf(stdout, "   %s version %u\n", brand, version);
+  if (brands > 0) {
+    fprintf(stdout, "   compatible with:");
+    for (int i = 0; i < brands; i++) {
+      fread(brand, 1, 4, in);
+      brand[4] = '\0';
+      fprintf(stdout, " %s", brand);
+    }
+    fprintf(stdout, "\n");
+  }
+  return 0;
+}
+
+/* dump a file */
 int dump(FILE *in)
 {
   while (!feof(in)) {
@@ -38,9 +71,14 @@ int dump(FILE *in)
       return -2;
     }
     type[4] = '\0';
-    fprintf(stderr, " '%s' box %u bytes\n", type, size);
-    /* skip to the next box */ 
-    fseek(in, size - 8, SEEK_CUR);
+    fprintf(stdout, " '%s' box %u bytes\n", type, size);
+    if (!memcmp(type, "ftyp", 4)) {
+      dump_ftyp(in, size);
+    }
+    else {
+      /* skip to the next box */ 
+      fseek(in, size - 8, SEEK_CUR);
+    }
   }
   return 0;
 }
