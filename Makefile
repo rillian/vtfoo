@@ -2,27 +2,51 @@
 # # License, v. 2.0. If a copy of the MPL was not distributed with this
 # # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-all: vtfoo
+PACKAGE := vtfoo
+VERSION := $(or $(shell git describe --tags --dirty --always),unknown)
+
+PROGRAMS := vtfoo
 
 CFLAGS ?= -g -Wall -O2
 FRAMEWORKS := VideoToolbox CoreMedia CoreFoundation
 
 vtfoo_SRCS := vtfoo.c
-vtfoo_OBJS := $(vtfoo_SRCS:.c=.o)
-vtfoo: $(vtfoo_OBJS)
-	$(CC) $(LDFLAGS) $^ $(addprefix -framework ,$(FRAMEWORKS)) -o $@
 
-%.o : %.c
-	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $^
+## Below this point is boilerplate
+
+all: $(PROGRAMS)
 
 clean:
-	$(RM) $(vtfoo_OBJS)
-	$(RM) vtfoo
+	$(RM) $(ALL_OBJS)
+	$(RM) $(PROGRAMS)
 
 check: all
-	./vtfoo
+	for prog in $(PROGRAMS); do echo ./$$(prog) && ./$$(prog); done
 
 dist:
 	@echo Not implemented.
 
 .PHONY: all clean check dist
+
+%.o : %.c
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $^
+
+define PROGRAM_template =
+$(1)_OBJS := $$($(1)_SRCS:%.c=%.o)
+ALL_OBJS += $$($(1)_OBJS)
+$(1) : $$($(1)_OBJS)
+	$$(CC) $$(LDFLAGS) $$^ $$(addprefix -framework ,$$(FRAMEWORKS)) -o $$@
+endef
+
+$(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_template,$(prog))))
+
+dump:
+	@echo PACKAGE = $(PACKAGE)
+	@echo VERSION = $(VERSION)
+	@echo PROGRAMS = $(PROGRAMS)
+	@echo CFLAGS = $(CFLAGS)
+	@echo LDFLAGS = $(LDFLAGS)
+	@echo ALL_OBJS = $(ALL_OBJS)
+	@echo vtfoo_SRCS = $(vtfoo_SRCS)
+	@echo vtfoo_OBJS = $(vtfoo_OBJS)
+	@echo PROGRAM_template = $(PROGRAM_template)
