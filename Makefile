@@ -39,14 +39,3 @@ $(1) : $$($(1)_OBJS)
 endef
 
 $(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_template,$(prog))))
-
-dump:
-	@echo PACKAGE = $(PACKAGE)
-	@echo VERSION = $(VERSION)
-	@echo PROGRAMS = $(PROGRAMS)
-	@echo CFLAGS = $(CFLAGS)
-	@echo LDFLAGS = $(LDFLAGS)
-	@echo ALL_OBJS = $(ALL_OBJS)
-	@echo vtfoo_SRCS = $(vtfoo_SRCS)
-	@echo vtfoo_OBJS = $(vtfoo_OBJS)
-	@echo PROGRAM_template = $(PROGRAM_template)
