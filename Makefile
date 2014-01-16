@@ -12,19 +12,18 @@ FRAMEWORKS := VideoToolbox CoreMedia CoreFoundation
 
 vtfoo_SRCS := vtfoo.c
 
+EXTRA_DIST := README.md
+
 ## Below this point is boilerplate
 
 all: $(PROGRAMS)
 
-clean:
-	$(RM) $(ALL_OBJS)
-	$(RM) $(PROGRAMS)
-
 check: all
 	@for prog in $(PROGRAMS); do echo ./$${prog} && ./$${prog}; done
 
-dist:
-	@echo Not implemented.
+clean:
+	$(RM) $(ALL_OBJS)
+	$(RM) $(PROGRAMS)
 
 .PHONY: all clean check dist
 
@@ -34,8 +33,19 @@ dist:
 define PROGRAM_template
 $(1)_OBJS := $$($(1)_SRCS:%.c=%.o)
 ALL_OBJS += $$($(1)_OBJS)
+ALL_SRCS += $$($(1)_SRCS)
 $(1) : $$($(1)_OBJS)
 	$$(CC) $$(LDFLAGS) $$^ $$(addprefix -framework ,$$(FRAMEWORKS)) -o $$@
 endef
 
 $(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_template,$(prog))))
+
+ARCHIVE_NAME := $(PACKAGE)-$(VERSION)
+dist: $(ALL_SRCS) Makefile $(EXTRA_DIST)
+	$(info ALL_SRCS = $(ALL_SRCS))
+	$(info deps = $< $^)
+	-$(RM) -r $(ARCHIVE_NAME)
+	mkdir $(ARCHIVE_NAME)
+	cp $^ $(ARCHIVE_NAME)/
+	tar czf $(ARCHIVE_NAME).tar.gz $(ARCHIVE_NAME)/*
+	-$(RM) -r $(ARCHIVE_NAME)
