@@ -23,29 +23,39 @@ uint32_t read_size(FILE *in)
          buf[3];
 }
 
+int read_type(FILE *in, uint8_t *type)
+{
+  uint8_t buf[4];
+  size_t read = fread(buf, 1, 4, in);
+  if (read != 4) {
+    fprintf(stderr, "Error: couldn't read type\n");
+    return -1;
+  }
+  memcpy(type, buf, 4);
+  type[4] = '\0';
+  return 0;
+}
+
 /* dump an 'ftyp' box, assuming the header is already read */
 int dump_ftyp(FILE *in, uint32_t size)
 {
-  char brand[5];
+  uint8_t brand[5];
   uint32_t version;
   int brands;
-  size_t read;
 
   if (size < 8)
     return -8;
   brands = (size - 8) / 4;
-  read = fread(brand, 1, 4, in);
-  if (read != 4) {
+  if (read_type(in, brand)) {
     fprintf(stderr, "Error: couldn't read brand\n");
     return -1;
   }
-  brand[4] = '\0';
   version = read_size(in);
   fprintf(stdout, "   %s version %u\n", brand, version);
   if (brands > 0) {
     fprintf(stdout, "   compatible with:");
     for (int i = 0; i < brands; i++) {
-      fread(brand, 1, 4, in);
+      read_type(in, brand);
       brand[4] = '\0';
       fprintf(stdout, " %s", brand);
     }
@@ -58,20 +68,21 @@ int dump_ftyp(FILE *in, uint32_t size)
 int dump(FILE *in)
 {
   while (!feof(in)) {
+    /* read size */
     uint32_t size = read_size(in);
     uint8_t type[5];
-    size_t read;
     if (size < 8) {
       fprintf(stderr, "Error: invalid box size\n");
       return -1;
     }
-    read = fread(type, 1, 4, in);
-    if (read != 4) {
-      fprintf(stderr, "Error: couldn't read type\n");
+    /* read type */
+    if (read_type(in, type)) {
+      fprintf(stderr, "Error: couldn't read box type\n");
       return -2;
     }
-    type[4] = '\0';
+    /* report box */
     fprintf(stdout, " '%s' box %u bytes\n", type, size);
+    /* dispatch to per-type parsers */
     if (!memcmp(type, "ftyp", 4)) {
       dump_ftyp(in, size);
     }
