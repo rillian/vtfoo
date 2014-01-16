@@ -5,12 +5,14 @@
 PACKAGE := vtfoo
 VERSION := $(or $(shell git describe --tags --dirty --always),unknown)
 
-PROGRAMS := vtfoo
+PROGRAMS := vtfoo mp4dump
 
 CFLAGS ?= -g -Wall -O2
 FRAMEWORKS := VideoToolbox CoreMedia CoreFoundation
 
 vtfoo_SRCS := vtfoo.c
+
+mp4dump_SRCS := mp4dump.c
 
 EXTRA_DIST := README.md
 
