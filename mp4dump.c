@@ -59,6 +59,12 @@ int read_box(FILE *in, box *box)
   return 0;
 }
 
+/* dump of box header */
+void dump_box(box *box)
+{
+    fprintf(stdout, " '%s' box %u bytes\n", box->type, box->size);
+}
+
 /* dump an 'ftyp' box, assuming the header is already read */
 int dump_ftyp(FILE *in, uint32_t size)
 {
@@ -88,6 +94,24 @@ int dump_ftyp(FILE *in, uint32_t size)
   return 0;
 }
 
+/* dump a 'moov' box */
+int dump_moov(FILE *in, box *moov)
+{
+  box box;
+  int ret;
+  size_t read = 0;
+  while (read < moov->size - 8) {
+    ret = read_box(in, &box);
+    if (ret) {
+      fprintf(stderr, "Error: couldn't read moov component\n");
+      return ret;
+    }
+    dump_box(&box);
+    fseek(in, box.size - 8, SEEK_CUR);
+  }
+  return 0;
+}
+
 /* dump a file */
 int dump(FILE *in)
 {
@@ -104,11 +128,12 @@ int dump(FILE *in)
       return -1;
     }
     /* report box */
-    fprintf(stdout, " '%s' box %u bytes\n", box.type, box.size);
+    dump_box(&box);
     /* dispatch to per-type parsers */
-    if (!memcmp(box.type, "ftyp", 4)) {
+    if (!memcmp(box.type, "ftyp", 4))
       dump_ftyp(in, box.size);
-    }
+    else if (!memcmp(box.type, "moov", 4))
+      dump_moov(in, &box);
     else {
       /* skip to the next box */ 
       fseek(in, box.size - 8, SEEK_CUR);
