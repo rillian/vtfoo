@@ -12,6 +12,7 @@
 typedef struct {
   uint32_t size;
   uint8_t type[5];
+  int level;
 } box;
 
 int read_size(FILE *in, uint32_t *size)
@@ -51,6 +52,7 @@ int read_box(FILE *in, box *box)
   if (!box)
     return -8;
 
+  box->level = 0;
   ret = read_size(in, &box->size);
   if (ret) return ret;
   ret = read_type(in, box->type);
@@ -62,7 +64,12 @@ int read_box(FILE *in, box *box)
 /* dump of box header */
 void dump_box(box *box)
 {
-    fprintf(stdout, " '%s' box %u bytes\n", box->type, box->size);
+  int i;
+
+  for (i = 0; i < box->level; i++) {
+    fprintf(stdout, " "); 
+  }
+  fprintf(stdout, " '%s' box %u bytes\n", box->type, box->size);
 }
 
 /* dump an 'ftyp' box, assuming the header is already read */
@@ -94,8 +101,8 @@ int dump_ftyp(FILE *in, uint32_t size)
   return 0;
 }
 
-/* dump a 'moov' box */
-int dump_moov(FILE *in, box *moov)
+/* dump a container box */
+int dump_container(FILE *in, box *moov)
 {
   box box;
   int ret;
@@ -103,9 +110,10 @@ int dump_moov(FILE *in, box *moov)
   while (read < moov->size - 8) {
     ret = read_box(in, &box);
     if (ret) {
-      fprintf(stderr, "Error: couldn't read moov component\n");
+      fprintf(stderr, "Error: couldn't read contained box\n");
       return ret;
     }
+    box.level++;
     dump_box(&box);
     fseek(in, box.size - 8, SEEK_CUR);
   }
@@ -133,7 +141,9 @@ int dump(FILE *in)
     if (!memcmp(box.type, "ftyp", 4))
       dump_ftyp(in, box.size);
     else if (!memcmp(box.type, "moov", 4))
-      dump_moov(in, &box);
+      dump_container(in, &box);
+    else if (!memcmp(box.type, "trak", 4))
+      dump_container(in, &box);
     else {
       /* skip to the next box */ 
       fseek(in, box.size - 8, SEEK_CUR);
