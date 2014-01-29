@@ -61,6 +61,9 @@ int read_box(FILE *in, box *box)
   return 0;
 }
 
+/* forward protoype */
+int dump_container(FILE *in, box *parent);
+
 /* dump of box header */
 void dump_box(box *box)
 {
@@ -101,21 +104,41 @@ int dump_ftyp(FILE *in, uint32_t size)
   return 0;
 }
 
+/* dispatch by box type, with recursion */
+int dispatch(FILE *in, box *box)
+{
+  if (!memcmp(box->type, "ftyp", 4))
+    return dump_ftyp(in, box->size);
+  if (!memcmp(box->type, "moov", 4))
+    return dump_container(in, box);
+  if (!memcmp(box->type, "mdia", 4))
+    return dump_container(in, box);
+  if (!memcmp(box->type, "trak", 4))
+    return dump_container(in, box);
+  /* Unhandled: skip to the next box */ 
+  fseek(in, box->size - 8, SEEK_CUR);
+  return 0;
+}
+
 /* dump a container box */
-int dump_container(FILE *in, box *moov)
+int dump_container(FILE *in, box *parent)
 {
   box box;
   int ret;
   size_t read = 0;
-  while (read < moov->size - 8) {
+  while (read < parent->size - 8) {
     ret = read_box(in, &box);
     if (ret) {
       fprintf(stderr, "Error: couldn't read contained box\n");
       return ret;
     }
-    box.level++;
+    box.level = parent->level + 1;
     dump_box(&box);
-    fseek(in, box.size - 8, SEEK_CUR);
+    ret = dispatch(in, &box);
+    if (ret) {
+      fprintf(stderr, "Error: couldn't parse contained box\n");
+      return ret;
+    }
   }
   return 0;
 }
@@ -138,16 +161,7 @@ int dump(FILE *in)
     /* report box */
     dump_box(&box);
     /* dispatch to per-type parsers */
-    if (!memcmp(box.type, "ftyp", 4))
-      dump_ftyp(in, box.size);
-    else if (!memcmp(box.type, "moov", 4))
-      dump_container(in, &box);
-    else if (!memcmp(box.type, "trak", 4))
-      dump_container(in, &box);
-    else {
-      /* skip to the next box */ 
-      fseek(in, box.size - 8, SEEK_CUR);
-    }
+    dispatch(in, &box);
   }
   return 0;
 }
