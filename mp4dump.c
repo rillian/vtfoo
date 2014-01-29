@@ -104,6 +104,40 @@ int dump_ftyp(FILE *in, uint32_t size)
   return 0;
 }
 
+/* dump media data */
+int dump_mdat(FILE *in, box *mdat)
+{
+  /* HACK: just copy some to a file for testing */
+  const size_t bufsize = 4096*1024;
+  uint8_t *buf = malloc(bufsize);
+  size_t read = 0;;
+  FILE *out;
+  if (!buf) {
+    fprintf(stderr, "Error: couldn't allocate mdat copy buffer\n");
+    return -8;
+  }
+  out = fopen("mdat", "wb");
+  if (!out) {
+    fprintf(stderr, "Error: couldn't open output file\n");
+    free(buf);
+    return -1;
+  }
+  while (read < mdat->size && !feof(in)) {
+    size_t bytes = mdat->size - read;
+    if (bytes > bufsize) bytes = bufsize;
+    bytes = fread(buf, 1, bytes, in);
+    if (bytes < 1) {
+      fprintf(stderr, "Error: couldn't read mdat data\n");
+      break;
+    }
+    fwrite(buf, 1, bytes, out);
+    read += bytes;
+  }
+  fclose(in);
+  free(buf);
+  return 0;
+}
+
 /* dispatch by box type, with recursion */
 int dispatch(FILE *in, box *box)
 {
@@ -115,6 +149,8 @@ int dispatch(FILE *in, box *box)
     return dump_container(in, box);
   if (!memcmp(box->type, "trak", 4))
     return dump_container(in, box);
+  if (!memcmp(box->type, "mdat", 4))
+    return dump_mdat(in, box);
   /* Unhandled: skip to the next box */ 
   fseek(in, box->size - 8, SEEK_CUR);
   return 0;
