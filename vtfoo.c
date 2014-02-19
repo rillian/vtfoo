@@ -33,12 +33,26 @@ int decode(void)
   VTDecompressionSessionRef session;
   VTDecompressionOutputCallbackRecord cb = { decode_cb, NULL };
   CMVideoFormatDescriptionRef format;
+  CMBlockBufferRef block = NULL;
   CMSampleBufferRef buffer = NULL;
   VTDecodeInfoFlags flags;
+  OSStatus status;
 
   /* Initialize the decoder. */
   CMVideoFormatDescriptionCreate(NULL, kCMVideoCodecType_H264, 1280, 720, NULL, &format);
   VTDecompressionSessionCreate(NULL, format, NULL, NULL, &cb, &session);
+
+  /* Wrap our demuxed frame data for passing to the decoder. */
+  { FILE *in = fopen("mdat", "rb");
+    const int mdat_size = 1000000;
+    uint8_t *mdat = malloc(mdat_size);
+    size_t read = fread(mdat, 1, mdat_size, in);
+    fclose(in);
+    status = CMBlockBufferCreateWithMemoryBlock(NULL, mdat, read, NULL, NULL, 0, read, false, &block);
+    if (status != noErr) return status;
+    status = CMSampleBufferCreate(NULL, block, TRUE, 0, 0, format, 1, 1, NULL, 0, NULL, &buffer);
+    if (status != noErr) return status;
+  }
 
   /* Loop over compressed data; our callback will be called with
    * each decoded frame buffer. Passed flags make this asynchronous. */
