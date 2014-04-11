@@ -82,9 +82,9 @@ int dump_ftyp(FILE *in, uint32_t size)
   uint32_t version;
   int brands;
 
-  if (size < 8)
+  if (size < 16)
     return -8;
-  brands = (size - 8) / 4;
+  brands = (size - 16) / 4;
   if (read_type(in, brand)) {
     fprintf(stderr, "Error: couldn't read brand\n");
     return -1;
@@ -94,13 +94,17 @@ int dump_ftyp(FILE *in, uint32_t size)
   fprintf(stdout, "   %s version %u\n", brand, version);
   if (brands > 0) {
     fprintf(stdout, "   compatible with:");
-    for (int i = 0; i < brands; i++) {
-      read_type(in, brand);
-      brand[4] = '\0';
+  }
+  for (int i = 0; i < brands; i++) {
+    read_type(in, brand);
+    brand[4] = '\0';
+    if (brand[0] == '\0') {
+      fprintf(stdout, " ''");
+    } else {
       fprintf(stdout, " %s", brand);
     }
-    fprintf(stdout, "\n");
   }
+  fprintf(stdout, "\n");
   return 0;
 }
 
@@ -150,7 +154,8 @@ int dispatch(FILE *in, box *box)
   if (!memcmp(box->type, "trak", 4))
     return dump_container(in, box);
   if (!memcmp(box->type, "mdat", 4))
-    return dump_mdat(in, box);
+    //return dump_mdat(in, box);
+    dump_box(box);
   /* Unhandled: skip to the next box */ 
   fseek(in, box->size - 8, SEEK_CUR);
   return 0;
