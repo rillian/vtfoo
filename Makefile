@@ -7,10 +7,10 @@ VERSION := $(or $(shell git describe --tags --dirty --always),unknown)
 
 PROGRAMS := vtfoo mp4dump
 
-CFLAGS ?= -g -Wall -O2
-FRAMEWORKS := VideoToolbox CoreMedia CoreFoundation
+CFLAGS ?= -g -Wall -O2 -std=c99
 
 vtfoo_SRCS := vtfoo.c
+vtfoo_FRAMEWORKS := VideoToolbox CoreMedia CoreFoundation
 
 mp4dump_SRCS := mp4dump.c
 
@@ -37,7 +37,7 @@ $(1)_OBJS := $$($(1)_SRCS:%.c=%.o)
 ALL_OBJS += $$($(1)_OBJS)
 ALL_SRCS += $$($(1)_SRCS)
 $(1) : $$($(1)_OBJS)
-	$$(CC) $$(LDFLAGS) $$^ $$(addprefix -framework ,$$(FRAMEWORKS)) -o $$@
+	$$(CC) $$(LDFLAGS) $$^ $$(addprefix -framework ,$$($(1)_FRAMEWORKS)) -o $$@
 endef
 
 $(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_template,$(prog))))
