@@ -57,6 +57,9 @@ int read_box(FILE *in, box *box)
   if (ret) return ret;
   ret = read_type(in, box->type);
   if (ret) return ret;
+  if (box->size < 8) {
+    fprintf(stderr, "Warning: unhandled large box or invalid size.\n");
+  }
 
   return 0;
 }
