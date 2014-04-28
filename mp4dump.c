@@ -15,6 +15,37 @@ typedef struct {
   int level;
 } box;
 
+uint16_t read_u16(FILE *in)
+{
+  uint8_t buf[2];
+  fread(buf, 1, sizeof(buf), in);
+  return buf[0] << 8 | buf[1];
+}
+
+uint32_t read_u32(FILE *in)
+{
+  uint8_t buf[4];
+  fread(buf, 1, sizeof(buf), in);
+  return buf[0] << 24 |
+         buf[1] << 16 |
+         buf[2] <<  8 |
+         buf[3];
+}
+
+uint64_t read_u64(FILE *in)
+{
+  uint8_t buf[8];
+  fread(buf, 1, sizeof(buf), in);
+  return (uint64_t)buf[0] << 56 |
+         (uint64_t)buf[1] << 48 |
+         (uint64_t)buf[2] << 40 |
+         (uint64_t)buf[3] << 32 |
+         (uint64_t)buf[4] << 24 |
+         (uint64_t)buf[5] << 16 |
+         (uint64_t)buf[6] <<  8 |
+         (uint64_t)buf[7];
+}
+
 int read_size(FILE *in, uint32_t *size)
 {
   uint8_t buf[4];
@@ -111,6 +142,82 @@ int dump_ftyp(FILE *in, uint32_t size)
   return 0;
 }
 
+/* dump media header */
+int dump_mvhd(FILE *in, box *mhdr)
+{
+  uint8_t version;
+  uint32_t flags;
+  double duration_s;
+  
+  if (mhdr->size < 8 + 96) {
+    fprintf(stderr, "Error: 'mvhd' too short.\n");
+    return -1;
+  }
+  fread(&flags, 4, 1, in);
+  version = flags >> 24;
+  flags = flags & 0x0fff;
+  if (version > 1) {
+    fprintf(stderr, "Error: unknown 'mvhd' version.\n");
+    return -1;
+  }
+  fprintf(stdout, "    Version %d flags 0x%06x\n", version, flags);
+  if (version == 1) {
+    if (mhdr->size < 8 + 108) {
+      fprintf(stderr, "Error: 'mvhd' too short.\n");
+      return -1;
+    }
+    uint64_t creation_time = read_u64(in);
+    uint64_t modification_time = read_u64(in);
+    uint32_t timescale = read_u32(in);
+    uint64_t duration = read_u64(in);
+    duration_s = (double)duration/timescale;
+    fprintf(stdout, "    Created  %llu\n", (unsigned long long)creation_time);
+    fprintf(stdout, "    Modified %llu\n", (unsigned long long)modification_time);
+    fprintf(stdout, "    Timescale %lu\n", (unsigned long)timescale);
+    fprintf(stdout, "    Duration %llu\n", (unsigned long long)duration);
+  } else {
+    // version == 0 uses 32-bit time fields.
+    uint32_t creation_time = read_u32(in); 
+    uint32_t modification_time = read_u32(in); 
+    uint32_t timescale = read_u32(in); 
+    uint32_t duration = read_u32(in); 
+    duration_s = (double)duration/timescale;
+    fprintf(stdout, "    Created  %lu\n", (unsigned long)creation_time);
+    fprintf(stdout, "    Modified %lu\n", (unsigned long)modification_time);
+    fprintf(stdout, "    Timescale %lu\n", (unsigned long)timescale);
+    fprintf(stdout, "    Duration %lu\n", (unsigned long)duration);
+  }
+  fprintf(stdout, "    Duration %lf seconds\n", duration_s);
+  uint32_t rate = read_u32(in);
+  uint16_t volume = read_u16(in);
+  fprintf(stdout, "    rate %lf\n", (double)rate/0x00010000);
+  fprintf(stdout, "    volume %lf\n", (double)volume/0x0100);
+  uint16_t reserved0 = read_u16(in);
+  uint32_t reserved1 = read_u32(in);
+  uint32_t reserved2 = read_u32(in);
+  if (reserved0 || reserved1 || reserved2) {
+    fprintf(stderr, "Warning: non-zero reserved fields.\n");
+  }
+  fprintf(stdout, "    Transformation matrix:\n");
+  for (int i = 0; i < 3; i++) {
+    uint32_t a = read_u32(in);
+    uint32_t b = read_u32(in);
+    uint32_t c = read_u32(in);
+    // Just guessing at the radix here.
+    fprintf(stdout,"      %lf %lf %lf\n",
+        (double)a/0x00010000, (double)b/0x00010000, (double)c/0x40000000);
+  }
+  for (int i = 0; i < 6; i++) {
+    uint32_t pre_defined = read_u32(in);
+    if (pre_defined) {
+      fprintf(stderr, "Warning: non-zero mvhd pre_defined field.\n");
+    }
+  }
+  uint32_t next_track_ID = read_u32(in);
+  fprintf(stderr, "    next track id %u\n", (unsigned)next_track_ID);
+  return 0;
+}
+
 /* dump media data */
 int dump_mdat(FILE *in, box *mdat)
 {
@@ -152,6 +259,8 @@ int dispatch(FILE *in, box *box)
     return dump_ftyp(in, box->size);
   if (!memcmp(box->type, "moov", 4))
     return dump_container(in, box);
+  if (!memcmp(box->type, "mvhd", 4))
+    return dump_mvhd(in, box);
   if (!memcmp(box->type, "mdia", 4))
     return dump_container(in, box);
   if (!memcmp(box->type, "trak", 4))
