@@ -327,6 +327,13 @@ int dump_container(FILE *in, box *parent)
       return ret;
     }
     box.level = parent->level + 1;
+    /* HACK: reset some box level until we have extent-based ends. */
+    if (!memcmp(box.type, "moof", 4)) {
+      box.level = 0;
+    }
+    if (!memcmp(box.type, "trak", 4)) {
+      box.level = 1;
+    }
     dump_box(&box);
     ret = dispatch(in, &box);
     if (ret) {
