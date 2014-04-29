@@ -104,7 +104,7 @@ void dump_box(box *box)
   int i;
 
   for (i = 0; i < box->level; i++) {
-    fprintf(stdout, " "); 
+    fprintf(stdout, " ");
   }
   fprintf(stdout, " '%s' box %u bytes\n", box->type, box->size);
 }
@@ -148,7 +148,7 @@ int dump_mvhd(FILE *in, box *mhdr)
   uint8_t version;
   uint32_t flags;
   double duration_s;
-  
+
   if (mhdr->size < 8 + 100) {
     fprintf(stderr, "Error: 'mvhd' too short.\n");
     return -1;
@@ -177,10 +177,10 @@ int dump_mvhd(FILE *in, box *mhdr)
     fprintf(stdout, "    Duration %llu\n", (unsigned long long)duration);
   } else {
     // version == 0 uses 32-bit time fields.
-    uint32_t creation_time = read_u32(in); 
-    uint32_t modification_time = read_u32(in); 
-    uint32_t timescale = read_u32(in); 
-    uint32_t duration = read_u32(in); 
+    uint32_t creation_time = read_u32(in);
+    uint32_t modification_time = read_u32(in);
+    uint32_t timescale = read_u32(in);
+    uint32_t duration = read_u32(in);
     duration_s = (double)duration/timescale;
     fprintf(stdout, "    Created  %lu\n", (unsigned long)creation_time);
     fprintf(stdout, "    Modified %lu\n", (unsigned long)modification_time);
@@ -223,7 +223,7 @@ int dump_mehd(FILE *in, box *mehd)
 {
   uint8_t version;
   uint32_t flags;
-  
+
   if (mehd->size < 16) {
     fprintf(stderr, "Error: 'mehd' too short.\n");
     return -1;
@@ -236,7 +236,7 @@ int dump_mehd(FILE *in, box *mehd)
     return -1;
   }
   fprintf(stdout, "     Version %d flags 0x%06x\n", version, flags);
- 
+
   if (version == 1) {
     if (mehd->size < 12 + 8) {
       fprintf(stderr, "Error: 'mehd' too short.\n");
@@ -307,7 +307,7 @@ int dispatch(FILE *in, box *box)
   if (!memcmp(box->type, "mdat", 4))
     //return dump_mdat(in, box);
     dump_box(box);
-  /* Unhandled: skip to the next box */ 
+  /* Unhandled: skip to the next box */
   fseek(in, box->size - 8, SEEK_CUR);
   return 0;
 }
