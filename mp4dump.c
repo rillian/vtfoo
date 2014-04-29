@@ -261,6 +261,8 @@ int dispatch(FILE *in, box *box)
     return dump_container(in, box);
   if (!memcmp(box->type, "mvhd", 4))
     return dump_mvhd(in, box);
+  if (!memcmp(box->type, "mvex", 4))
+    return dump_container(in, box);
   if (!memcmp(box->type, "mdia", 4))
     return dump_container(in, box);
   if (!memcmp(box->type, "trak", 4))
