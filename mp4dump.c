@@ -218,6 +218,41 @@ int dump_mvhd(FILE *in, box *mhdr)
   return 0;
 }
 
+/* dump movie extents header data */
+int dump_mehd(FILE *in, box *mehd)
+{
+  uint8_t version;
+  uint32_t flags;
+  
+  if (mehd->size < 16) {
+    fprintf(stderr, "Error: 'mehd' too short.\n");
+    return -1;
+  }
+  fread(&flags, 4, 1, in);
+  version = flags >> 24;
+  flags = flags & 0x0fff;
+  if (version > 1) {
+    fprintf(stderr, "Error: unknown 'mehd' version.\n");
+    return -1;
+  }
+  fprintf(stdout, "     Version %d flags 0x%06x\n", version, flags);
+ 
+  if (version == 1) {
+    if (mehd->size < 12 + 8) {
+      fprintf(stderr, "Error: 'mehd' too short.\n");
+      return -1;
+    }
+    uint64_t fragment_duration = read_u64(in);
+    fprintf(stdout, "     fragment duration: %llu\n",
+        (unsigned long long)fragment_duration);
+  } else{
+    uint32_t fragment_duration = read_u32(in);
+    fprintf(stdout, "     fragment duration: %lu\n",
+        (unsigned long)fragment_duration);
+  }
+  return 0;
+}
+
 /* dump media data */
 int dump_mdat(FILE *in, box *mdat)
 {
@@ -263,6 +298,8 @@ int dispatch(FILE *in, box *box)
     return dump_mvhd(in, box);
   if (!memcmp(box->type, "mvex", 4))
     return dump_container(in, box);
+  if (!memcmp(box->type, "mehd", 4))
+    return dump_mehd(in, box);
   if (!memcmp(box->type, "mdia", 4))
     return dump_container(in, box);
   if (!memcmp(box->type, "trak", 4))
