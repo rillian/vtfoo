@@ -304,6 +304,8 @@ int dispatch(FILE *in, box *box)
     return dump_container(in, box);
   if (!memcmp(box->type, "trak", 4))
     return dump_container(in, box);
+  if (!memcmp(box->type, "moof", 4))
+    return dump_container(in, box);
   if (!memcmp(box->type, "mdat", 4))
     //return dump_mdat(in, box);
     dump_box(box);
