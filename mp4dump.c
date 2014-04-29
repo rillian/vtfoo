@@ -149,7 +149,7 @@ int dump_mvhd(FILE *in, box *mhdr)
   uint32_t flags;
   double duration_s;
   
-  if (mhdr->size < 8 + 96) {
+  if (mhdr->size < 8 + 100) {
     fprintf(stderr, "Error: 'mvhd' too short.\n");
     return -1;
   }
@@ -162,7 +162,7 @@ int dump_mvhd(FILE *in, box *mhdr)
   }
   fprintf(stdout, "    Version %d flags 0x%06x\n", version, flags);
   if (version == 1) {
-    if (mhdr->size < 8 + 108) {
+    if (mhdr->size < 8 + 112) {
       fprintf(stderr, "Error: 'mvhd' too short.\n");
       return -1;
     }
