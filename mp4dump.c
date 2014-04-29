@@ -253,6 +253,34 @@ int dump_mehd(FILE *in, box *mehd)
   return 0;
 }
 
+/* dump movie fragment header box */
+int dump_mfhd(FILE *in, box *mfhd)
+{
+  uint8_t version;
+  uint32_t flags;
+
+  if (mfhd->size < 16) {
+    fprintf(stderr, "Error: 'mfhd' too short.\n");
+    return -1;
+  }
+  fread(&flags, 4, 1, in);
+  version = flags >> 24;
+  flags = flags & 0x0fff;
+  if (version > 0) {
+    fprintf(stderr, "Error: unknown 'mfhd' version.\n");
+    return -1;
+  }
+  if (flags != 0) {
+    fprintf(stderr, "Warning: non-zero 'mfhd' flags.\n");
+  }
+  //fprintf(stdout, "     Version %d flags 0x%06x\n", version, flags);
+  /* Only the sequence number */
+  uint32_t sequence_number = read_u32(in);
+  fprintf(stderr, "     sequence number %lu\n",
+      (unsigned long)sequence_number);
+  return 0;
+}
+
 /* dump media data */
 int dump_mdat(FILE *in, box *mdat)
 {
@@ -306,6 +334,8 @@ int dispatch(FILE *in, box *box)
     return dump_container(in, box);
   if (!memcmp(box->type, "moof", 4))
     return dump_container(in, box);
+  if (!memcmp(box->type, "mfhd", 4))
+    return dump_mfhd(in, box);
   if (!memcmp(box->type, "mdat", 4))
     //return dump_mdat(in, box);
     dump_box(box);
