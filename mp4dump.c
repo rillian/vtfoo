@@ -9,11 +9,18 @@
 #include <stdint.h>
 #include <string.h>
 
+/* General box structure */
 typedef struct {
   uint32_t size;
   uint8_t type[5];
   int level;
 } box;
+
+/* Just the 'fullbox' header */
+typedef struct {
+  uint8_t version;
+  uint32_t flags;
+} fullbox;
 
 uint16_t read_u16(FILE *in)
 {
@@ -76,6 +83,29 @@ int read_type(FILE *in, uint8_t *type)
   return 0;
 }
 
+int read_fullbox(FILE *in, box *box, fullbox *header)
+{
+  uint8_t version;
+  uint32_t flags;
+
+  if (box->size < 16) {
+    fprintf(stderr, "Error: '%s' too short for fullbox header.\n", box->type);
+    return -1;
+  }
+  fread(&flags, 4, 1, in);
+  version = flags >> 24;
+  flags = flags & 0x0fff;
+  if (version > 1) {
+    fprintf(stderr, "Warning: '%s' version > 1.\n", box->type);
+    return -1;
+  }
+ 
+  header->version = version;
+  header->flags = flags;
+
+  return 0;
+}
+
 int read_box(FILE *in, box *box)
 {
   int ret;
@@ -98,15 +128,26 @@ int read_box(FILE *in, box *box)
 /* forward protoype */
 int dump_container(FILE *in, box *parent);
 
-/* dump of box header */
-void dump_box(box *box)
+/* dump box header */
+static void _dump_box_helper(box *box)
 {
-  int i;
-
-  for (i = 0; i < box->level; i++) {
+  for (int i = 0; i < box->level; i++) {
     fprintf(stdout, " ");
   }
-  fprintf(stdout, " '%s' box %u bytes\n", box->type, box->size);
+  fprintf(stdout, " '%s' box %u bytes", box->type, box->size);
+}
+void dump_box(box *box)
+{
+  _dump_box_helper(box);
+  fprintf(stdout, "\n");
+}
+
+/* dump fullbox header */
+void dump_fullbox(box *box, fullbox *header)
+{
+  _dump_box_helper(box);
+  fprintf(stdout, "\tVersion %d flags 0x%06x\n",
+      header->version, header->flags);
 }
 
 /* dump an 'ftyp' box, assuming the header is already read */
@@ -145,23 +186,20 @@ int dump_ftyp(FILE *in, uint32_t size)
 /* dump media header */
 int dump_mvhd(FILE *in, box *mhdr)
 {
-  uint8_t version;
-  uint32_t flags;
+  fullbox header;
   double duration_s;
 
   if (mhdr->size < 8 + 100) {
     fprintf(stderr, "Error: 'mvhd' too short.\n");
     return -1;
   }
-  fread(&flags, 4, 1, in);
-  version = flags >> 24;
-  flags = flags & 0x0fff;
-  if (version > 1) {
+  read_fullbox(in, mhdr, &header);
+  dump_fullbox(mhdr, &header);
+  if (header.version > 1) {
     fprintf(stderr, "Error: unknown 'mvhd' version.\n");
     return -1;
   }
-  fprintf(stdout, "    Version %d flags 0x%06x\n", version, flags);
-  if (version == 1) {
+  if (header.version == 1) {
     if (mhdr->size < 8 + 112) {
       fprintf(stderr, "Error: 'mvhd' too short.\n");
       return -1;
@@ -221,23 +259,15 @@ int dump_mvhd(FILE *in, box *mhdr)
 /* dump movie extents header data */
 int dump_mehd(FILE *in, box *mehd)
 {
-  uint8_t version;
-  uint32_t flags;
+  fullbox header;
 
   if (mehd->size < 16) {
     fprintf(stderr, "Error: 'mehd' too short.\n");
     return -1;
   }
-  fread(&flags, 4, 1, in);
-  version = flags >> 24;
-  flags = flags & 0x0fff;
-  if (version > 1) {
-    fprintf(stderr, "Error: unknown 'mehd' version.\n");
-    return -1;
-  }
-  fprintf(stdout, "     Version %d flags 0x%06x\n", version, flags);
-
-  if (version == 1) {
+  read_fullbox(in, mehd, &header);
+  dump_fullbox(mehd, &header);
+  if (header.version == 1) {
     if (mehd->size < 12 + 8) {
       fprintf(stderr, "Error: 'mehd' too short.\n");
       return -1;
@@ -256,28 +286,27 @@ int dump_mehd(FILE *in, box *mehd)
 /* dump movie fragment header box */
 int dump_mfhd(FILE *in, box *mfhd)
 {
-  uint8_t version;
-  uint32_t flags;
+  fullbox header;
 
   if (mfhd->size < 16) {
     fprintf(stderr, "Error: 'mfhd' too short.\n");
     return -1;
   }
-  fread(&flags, 4, 1, in);
-  version = flags >> 24;
-  flags = flags & 0x0fff;
-  if (version > 0) {
+  read_fullbox(in, mfhd, &header);
+  dump_fullbox(mfhd, &header);
+  if (header.version > 0) {
     fprintf(stderr, "Error: unknown 'mfhd' version.\n");
     return -1;
   }
-  if (flags != 0) {
+  if (header.flags != 0) {
     fprintf(stderr, "Warning: non-zero 'mfhd' flags.\n");
   }
-  //fprintf(stdout, "     Version %d flags 0x%06x\n", version, flags);
+
   /* Only the sequence number */
   uint32_t sequence_number = read_u32(in);
   fprintf(stderr, "     sequence number %lu\n",
       (unsigned long)sequence_number);
+
   return 0;
 }
 
@@ -329,6 +358,10 @@ int dispatch(FILE *in, box *box)
   if (!memcmp(box->type, "mehd", 4))
     return dump_mehd(in, box);
   if (!memcmp(box->type, "mdia", 4))
+    return dump_container(in, box);
+  if (!memcmp(box->type, "minf", 4))
+    return dump_container(in, box);
+  if (!memcmp(box->type, "stbl", 4))
     return dump_container(in, box);
   if (!memcmp(box->type, "trak", 4))
     return dump_container(in, box);
