@@ -1,0 +1,4 @@
+*.o
+*.dSYM
+vtfoo
+mp4dump
